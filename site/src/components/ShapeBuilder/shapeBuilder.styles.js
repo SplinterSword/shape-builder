@@ -22,6 +22,7 @@ export const CanvasContainer = styled.div`
   height: 520px;
   box-sizing: border-box;
   position: relative;
+  overflow: hidden;
 `;
 
 export const StyledSVG = styled.svg`

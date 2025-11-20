@@ -1,197 +1,304 @@
-// /* global window */
+// Updated ShapeBuilder with Curved Drawing Support (Figma-like)
+// Style preserved from your original component
+
 import React, { useEffect, useRef, useState } from "react";
 import { Wrapper, CanvasContainer, OutputBox, StyledSVG } from "./shapeBuilder.styles";
 import { Button, Typography, Box } from "@layer5/sistent";
-import { SVG, extend as SVGextend } from "@svgdotjs/svg.js";
-import draw from "@svgdotjs/svg.draw.js";
 
-SVGextend(SVG.Polygon, draw);
+const defaultStroke = "#00B39F";
+
+function getSvgPoint(svg, clientX, clientY) {
+  if (!svg) return { x: clientX, y: clientY };
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
 
 const ShapeBuilder = () => {
   const boardRef = useRef(null);
-  const polyRef = useRef(null);
-  const keyHandlersRef = useRef({});
+  const [mousePoint, setMousePoint] = useState(null);
+  const [anchors, setAnchors] = useState([]); // {x,y, handleIn:{x,y}, handleOut:{x,y}}
+  const [isClosed, setIsClosed] = useState(false);
+  const [dragState, setDragState] = useState(null);
   const [result, setResult] = useState("");
-  const [error, setError] = useState(null);
 
-  const getPlottedPoints = (poly) => {
-    if (!poly) return null;
-    const plotted = poly.plot();
-    const points = Array.isArray(plotted) ? plotted : plotted?.value;
-    return Array.isArray(points) ? points : null;
-  };
+  // deep clone anchors helper
+  const cloneAnchors = (arr) => arr.map(a => ({
+    x: a.x, y: a.y,
+    handleIn: { x: a.handleIn.x, y: a.handleIn.y },
+    handleOut: { x: a.handleOut.x, y: a.handleOut.y }
+  }));
 
-  const showCytoArray = () => {
-    const poly = polyRef.current;
-    if (!poly) return;
+  // Add a new anchor and optionally begin placing (dragging handle)
+  const addAnchor = (x, y, placing = true) => {
+    const newAnchor = { x, y, handleIn: { x, y }, handleOut: { x, y } };
+    setAnchors(prev => {
+      const next = cloneAnchors(prev);
+      next.push(newAnchor);
+      return next;
+    });
 
-    try {
-      const points = getPlottedPoints(poly);
-      if (!points) throw new Error("Invalid or empty polygon points");
-
-      const normalized = points
-        .map(([x, y]) => [(x - 260) / 260, (y - 260) / 260])
-        .flat()
-        .join(" ");
-      setResult(normalized);
-      setError(null);
-    } catch (err) {
-      setError("Failed to extract and normalize polygon points.");
-      console.error("showCytoArray error:", err);
+    if (placing) {
+      // index will be previous length
+      setDragState(prev => ({ type: 'placing', index: (anchors.length), start: { x, y } }));
     }
   };
 
-  const handleMaximize = () => {
-    const poly = polyRef.current;
-    if (!poly) return;
-
-    const points = getPlottedPoints(poly);
-    if (!points) return;
-    const xs = points.map(p => p[0]);
-    const ys = points.map(p => p[1]);
-
-    const width = Math.abs(Math.max(...xs) - Math.min(...xs));
-    const height = Math.abs(Math.max(...ys) - Math.min(...ys));
-
-    poly.size(width > height ? 520 : undefined, height >= width ? 520 : undefined);
-    poly.move(0, 0);
-    showCytoArray();
+  const updateAnchorHandle = (index, handleKey, hx, hy, symmetric = true) => {
+    setAnchors(prev => {
+      const next = cloneAnchors(prev);
+      if (!next[index]) return prev;
+      next[index][handleKey] = { x: hx, y: hy };
+      if (symmetric) {
+        const ax = next[index].x;
+        const ay = next[index].y;
+        const dx = hx - ax;
+        const dy = hy - ay;
+        const opposite = handleKey === 'handleOut' ? 'handleIn' : 'handleOut';
+        next[index][opposite] = { x: ax - dx, y: ay - dy };
+      }
+      return next;
+    });
   };
 
-  const handleKeyDown = (e) => {
-    const poly = polyRef.current;
-    if (!poly) return;
+  const updatePathOnMove = (clientX, clientY) => {
+    if (!boardRef.current) return;
+    const pt = getSvgPoint(boardRef.current, clientX, clientY);
+    if (!dragState) return;
 
-    if (e.ctrlKey) {
-      poly.draw("param", "snapToGrid", 0.001);
-    }
-
-    if (e.key === "Enter") {
-      poly.draw("done");
-      poly.fill("#00B39F");
-      showCytoArray();
-    }
-
-    if (e.ctrlKey && e.key.toLowerCase() === "z") {
-      const points = getPlottedPoints(poly);
-      if (!points) return;
-      poly.plot(points.slice(0, -1));
+    if (dragState.type === 'placing') {
+      updateAnchorHandle(dragState.index, 'handleOut', pt.x, pt.y, true);
+    } else if (dragState.type === 'handle') {
+      updateAnchorHandle(dragState.index, dragState.handleKey, pt.x, pt.y, dragState.symmetric);
     }
   };
 
-  const handleKeyUp = (e) => {
-    const poly = polyRef.current;
-    if (!poly || e.ctrlKey) return;
-    poly.draw("param", "snapToGrid", 16);
+  // Mouse handlers
+  const onMouseDown = (e) => {
+    // left button only
+    if (e.button !== 0) return;
+    if (isClosed) return;
+
+    const pt = getSvgPoint(boardRef.current, e.clientX, e.clientY);
+    addAnchor(pt.x, pt.y, true);
   };
 
-  const attachKeyListeners = () => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
-    keyHandlersRef.current = { handleKeyDown, handleKeyUp };
-  };
-
-  const detachKeyListeners = () => {
-    const { handleKeyDown, handleKeyUp } = keyHandlersRef.current;
-    if (handleKeyDown) document.removeEventListener("keydown", handleKeyDown);
-    if (handleKeyUp) document.removeEventListener("keyup", handleKeyUp);
-    keyHandlersRef.current = {};
-  };
-
-  const initializeDrawing = () => {
-    if (!boardRef.current) {
-      setError("Canvas reference not found");
-      return;
-    }
-
-    try {
-      const draw = SVG()
-        .addTo(boardRef.current)
-        .size("100%", "100%")
-        .polygon()
-        .draw()
-        .attr({ stroke: "#00B39F", "stroke-width": 1, fill: "none" });
-
-      draw.draw("param", "snapToGrid", 16);
-      draw.on("drawstart", attachKeyListeners);
-      draw.on("drawdone", detachKeyListeners);
-
-      polyRef.current = draw;
-      setError(null);
-    } catch (err) {
-      setError(`Failed to initialize drawing: ${err.message}`);
+  const onMouseMove = (e) => {
+    // update preview point
+    if (!boardRef.current) return;
+    const pt = getSvgPoint(boardRef.current, e.clientX, e.clientY);
+    setMousePoint(pt);
+    if (dragState) {
+      updatePathOnMove(e.clientX, e.clientY);
     }
   };
 
-  const clearShape = () => {
-    const poly = polyRef.current;
-    if (!poly) return;
-
-    poly.draw("cancel");
-    poly.remove();
-    detachKeyListeners();
-    polyRef.current = null;
-    setResult("");
-    initializeDrawing();
+  const onMouseUp = (e) => {
+    // finalize placing/dragging
+    setDragState(null);
   };
 
-  const closeShape = () => {
-    const poly = polyRef.current;
-    if (!poly) return;
+  const onHandleMouseDown = (e, index, handleKey) => {
+    e.stopPropagation();
+    const symmetric = !e.shiftKey; // shift decouples handles
+    setDragState({ type: 'handle', index, handleKey, symmetric });
+  };
 
-    poly.draw("done");
-    poly.fill("#00B39F");
-    showCytoArray();
+  const onAnchorMouseDown = (e, index) => {
+    e.stopPropagation();
+    const start = getSvgPoint(boardRef.current, e.clientX, e.clientY);
+    setDragState({ type: 'moveAnchor', index, start });
+  };
+
+  // move anchor effect
+  useEffect(() => {
+    if (!dragState || dragState.type !== 'moveAnchor') return;
+
+    const move = (ev) => {
+      const pt = getSvgPoint(boardRef.current, ev.clientX, ev.clientY);
+      setAnchors(prev => {
+        const next = cloneAnchors(prev);
+        const idx = dragState.index;
+        if (!next[idx]) return prev;
+        const dx = pt.x - dragState.start.x;
+        const dy = pt.y - dragState.start.y;
+        next[idx].x += dx; next[idx].y += dy;
+        next[idx].handleIn.x += dx; next[idx].handleIn.y += dy;
+        next[idx].handleOut.x += dx; next[idx].handleOut.y += dy;
+        return next;
+      });
+      setDragState(s => ({ ...s, start: pt }));
+    };
+
+    const up = () => setDragState(null);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, [dragState]);
+
+  // global handle/placing drag listeners
+  useEffect(() => {
+    if (!dragState) return;
+    if (dragState.type !== 'handle' && dragState.type !== 'placing') return;
+
+    const onMove = (ev) => updatePathOnMove(ev.clientX, ev.clientY);
+    const onUp = () => setDragState(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragState]);
+
+  // keyboard handlers
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Enter' && anchors.length >= 3) {
+        setIsClosed(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        setAnchors(prev => prev.slice(0, -1));
+        setIsClosed(false);
+      }
+      if (e.key === 'Escape') {
+        // Close shape on ESC
+        if (anchors.length >= 3) {
+          setIsClosed(true);
+        }
+        setDragState(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [anchors]);
+
+  const buildPathD = () => {
+    if (anchors.length === 0) return '';
+    let d = `M ${anchors[0].x} ${anchors[0].y}`;
+    for (let i = 1; i < anchors.length; i++) {
+      const prev = anchors[i - 1];
+      const curr = anchors[i];
+      d += ` C ${prev.handleOut.x} ${prev.handleOut.y}, ${curr.handleIn.x} ${curr.handleIn.y}, ${curr.x} ${curr.y}`;
+    }
+    if (isClosed && anchors.length >= 2) {
+      const last = anchors[anchors.length - 1];
+      const first = anchors[0];
+      d += ` C ${last.handleOut.x} ${last.handleOut.y}, ${first.handleIn.x} ${first.handleIn.y}, ${first.x} ${first.y} Z`;
+    }
+    return d;
+  };
+
+  // Export SVG path d instead of normalized points
+  const computeExportString = () => {
+    return buildPathD();
   };
 
   useEffect(() => {
-    initializeDrawing();
-    return () => {
-      detachKeyListeners();
-      if (polyRef.current) {
-        polyRef.current.draw("cancel");
-        polyRef.current.remove();
-        polyRef.current = null;
-      }
-    };
-  }, []);
+    setResult(computeExportString());
+  }, [anchors, isClosed]);
+
+  const clear = () => {
+    setAnchors([]);
+    setIsClosed(false);
+    setDragState(null);
+    setResult('');
+  };
 
   return (
     <Wrapper>
       <CanvasContainer>
-        <StyledSVG ref={boardRef} width="100%" height="100%">
+        <StyledSVG
+          ref={boardRef}
+          width="100%"
+          height="100%"
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+        >
           <defs>
-            <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
-              <path d="M 16 0 L 0 0 0 16" fill="none" stroke="#797d7a" strokeWidth="1" />
+            <pattern id="smallGrid" width="8" height="8" patternUnits="userSpaceOnUse">
+              <path d="M 8 0 L 0 0 0 8" fill="none" stroke="#333" strokeWidth="0.3" />
+            </pattern>
+
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <rect width="40" height="40" fill="url(#smallGrid)" />
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#444" strokeWidth="0.7" />
             </pattern>
           </defs>
-          <rect className="grid" width="100%" height="100%" fill="url(#grid)" />
+
+          <rect width="100%" height="100%" fill="url(#grid)" opacity="0.4" />
+
+          {/* path preview */}
+          <path d={buildPathD()} fill={isClosed ? defaultStroke : 'none'} stroke={defaultStroke} strokeWidth={2} />
+
+          {/* preview mouse point */}
+          {mousePoint && anchors.length > 0 && !isClosed && (
+            <line
+              x1={anchors[anchors.length - 1].x}
+              y1={anchors[anchors.length - 1].y}
+              x2={mousePoint.x}
+              y2={mousePoint.y}
+              stroke="#00B39F"
+              strokeWidth={1}
+              strokeDasharray="4 2"
+            />
+          )}
+
+          {mousePoint && !isClosed && (
+            <circle cx={mousePoint.x} cy={mousePoint.y} r={4} fill={defaultStroke} opacity={0.6} />
+          )}
+
+          {/* anchors, handles */}
+          {anchors.map((a, idx) => (
+            <g key={idx}>
+              <line x1={a.x} y1={a.y} x2={a.handleIn.x} y2={a.handleIn.y} stroke="#bbb" strokeWidth={1} />
+              <line x1={a.x} y1={a.y} x2={a.handleOut.x} y2={a.handleOut.y} stroke="#bbb" strokeWidth={1} />
+
+              <circle
+                cx={a.handleIn.x}
+                cy={a.handleIn.y}
+                r={6}
+                fill="#fff"
+                stroke="#666"
+                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleIn')}
+              />
+
+              <circle
+                cx={a.handleOut.x}
+                cy={a.handleOut.y}
+                r={6}
+                fill="#fff"
+                stroke="#666"
+                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleOut')}
+              />
+
+              <circle
+                cx={a.x}
+                cy={a.y}
+                r={5}
+                fill={defaultStroke}
+                stroke="#033"
+                strokeWidth={1}
+                onMouseDown={(e) => onAnchorMouseDown(e, idx)}
+              />
+            </g>
+          ))}
         </StyledSVG>
-        {error && (
-          <div style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            color: "red",
-            backgroundColor: "white",
-            padding: "10px",
-            borderRadius: "5px"
-          }}>
-            {error}
-          </div>
-        )}
       </CanvasContainer>
 
-      <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 3, mb: 3, flexWrap: "wrap" }}>
-        <Button variant="contained" onClick={clearShape}>Clear</Button>
-        <Button variant="contained" onClick={closeShape}>Close Shape</Button>
-        <Button variant="contained" onClick={handleMaximize}>Maximize</Button>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3, mb: 3, flexWrap: 'wrap' }}>
+        <Button variant="contained" onClick={clear}>Clear</Button>
+        <Button variant="contained" onClick={() => setIsClosed(true)}>Close Shape</Button>
       </Box>
 
       <OutputBox>
         <Typography variant="subtitle1" component="h6">
-          Polygon Coordinates (SVG format):
+          SVG Path (d attribute):
         </Typography>
         <textarea readOnly value={result} />
       </OutputBox>
