@@ -2,8 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Wrapper, CanvasContainer, OutputBox, StyledSVG, CopyButton } from "./shapeBuilder.styles";
 import { Button, Typography, Box, CopyIcon } from "@layer5/sistent";
-import { SVG, extend as SVGextend } from "@svgdotjs/svg.js";
-import draw from "@svgdotjs/svg.draw.js";
+import { draw, SVG, extend as SVGextend } from "@svgdotjs/svg.js";
 
 SVGextend(SVG.Polygon, draw);
 
