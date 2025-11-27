@@ -1,3 +1,6 @@
+// Updated ShapeBuilder with Curved Drawing Support (Figma-like)
+// Style preserved from your original component
+
 import React, { useEffect, useRef, useState } from "react";
 import { Wrapper, CanvasContainer, OutputBox, StyledSVG } from "./shapeBuilder.styles";
 import { Button, Typography, Box } from "@layer5/sistent";
@@ -15,6 +18,7 @@ function getSvgPoint(svg, clientX, clientY) {
 const ShapeBuilder = () => {
   const boardRef = useRef(null);
   const [mousePoint, setMousePoint] = useState(null);
+  const [nearFirst, setNearFirst] = useState(false);
   const [anchors, setAnchors] = useState([]); // {x,y, handleIn:{x,y}, handleOut:{x,y}}
   const [isClosed, setIsClosed] = useState(false);
   const [dragState, setDragState] = useState(null);
@@ -38,7 +42,7 @@ const ShapeBuilder = () => {
 
     if (placing) {
       // index will be previous length
-      setDragState(prev => ({ type: "placing", index: (anchors.length), start: { x, y } }));
+      setDragState(prev => ({ type: 'placing', index: (anchors.length), start: { x, y } }));
     }
   };
 
@@ -52,7 +56,7 @@ const ShapeBuilder = () => {
         const ay = next[index].y;
         const dx = hx - ax;
         const dy = hy - ay;
-        const opposite = handleKey === "handleOut" ? "handleIn" : "handleOut";
+        const opposite = handleKey === 'handleOut' ? 'handleIn' : 'handleOut';
         next[index][opposite] = { x: ax - dx, y: ay - dy };
       }
       return next;
@@ -64,9 +68,9 @@ const ShapeBuilder = () => {
     const pt = getSvgPoint(boardRef.current, clientX, clientY);
     if (!dragState) return;
 
-    if (dragState.type === "placing") {
-      updateAnchorHandle(dragState.index, "handleOut", pt.x, pt.y, true);
-    } else if (dragState.type === "handle") {
+    if (dragState.type === 'placing') {
+      updateAnchorHandle(dragState.index, 'handleOut', pt.x, pt.y, true);
+    } else if (dragState.type === 'handle') {
       updateAnchorHandle(dragState.index, dragState.handleKey, pt.x, pt.y, dragState.symmetric);
     }
   };
@@ -78,6 +82,23 @@ const ShapeBuilder = () => {
     if (isClosed) return;
 
     const pt = getSvgPoint(boardRef.current, e.clientX, e.clientY);
+
+    // If we're near the first point and already have a polygon, auto-close
+    if (anchors.length >= 3) {
+      const first = anchors[0];
+      const dx = pt.x - first.x;
+      const dy = pt.y - first.y;
+      const distanceSq = dx * dx + dy * dy;
+      const threshold = 6; // tighter pixels radius for snapping/closing
+
+      if (distanceSq <= threshold * threshold) {
+        setIsClosed(true);
+        setDragState(null);
+        return;
+      }
+    }
+
+    // Otherwise, create a new anchor
     addAnchor(pt.x, pt.y, true);
   };
 
@@ -85,6 +106,19 @@ const ShapeBuilder = () => {
     // update preview point
     if (!boardRef.current) return;
     const pt = getSvgPoint(boardRef.current, e.clientX, e.clientY);
+
+    // detect proximity to first anchor for hover-close indication
+    if (!isClosed && anchors.length >= 3) {
+      const first = anchors[0];
+      const dx = pt.x - first.x;
+      const dy = pt.y - first.y;
+      const distanceSq = dx * dx + dy * dy;
+      const threshold = 6; // tighter radius in pixels
+      setNearFirst(distanceSq <= threshold * threshold);
+    } else {
+      setNearFirst(false);
+    }
+
     setMousePoint(pt);
     if (dragState) {
       updatePathOnMove(e.clientX, e.clientY);
@@ -99,18 +133,27 @@ const ShapeBuilder = () => {
   const onHandleMouseDown = (e, index, handleKey) => {
     e.stopPropagation();
     const symmetric = !e.shiftKey; // shift decouples handles
-    setDragState({ type: "handle", index, handleKey, symmetric });
+    setDragState({ type: 'handle', index, handleKey, symmetric });
   };
 
   const onAnchorMouseDown = (e, index) => {
     e.stopPropagation();
+
+    // If we click the first point while drawing (and have enough anchors), close the shape instead of moving it
+    if (!isClosed && index === 0 && anchors.length >= 3) {
+      setIsClosed(true);
+      setDragState(null);
+      return;
+    }
+
+    // Otherwise, start moving this anchor
     const start = getSvgPoint(boardRef.current, e.clientX, e.clientY);
-    setDragState({ type: "moveAnchor", index, start });
+    setDragState({ type: 'moveAnchor', index, start });
   };
 
   // move anchor effect
   useEffect(() => {
-    if (!dragState || dragState.type !== "moveAnchor") return;
+    if (!dragState || dragState.type !== 'moveAnchor') return;
 
     const move = (ev) => {
       const pt = getSvgPoint(boardRef.current, ev.clientX, ev.clientY);
@@ -129,40 +172,40 @@ const ShapeBuilder = () => {
     };
 
     const up = () => setDragState(null);
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
     return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
     };
   }, [dragState]);
 
   // global handle/placing drag listeners
   useEffect(() => {
     if (!dragState) return;
-    if (dragState.type !== "handle" && dragState.type !== "placing") return;
+    if (dragState.type !== 'handle' && dragState.type !== 'placing') return;
 
     const onMove = (ev) => updatePathOnMove(ev.clientX, ev.clientY);
     const onUp = () => setDragState(null);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
   }, [dragState]);
 
   // keyboard handlers
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === "Enter" && anchors.length >= 3) {
+      if (e.key === 'Enter' && anchors.length >= 3) {
         setIsClosed(true);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         setAnchors(prev => prev.slice(0, -1));
         setIsClosed(false);
       }
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         // Close shape on ESC
         if (anchors.length >= 3) {
           setIsClosed(true);
@@ -170,12 +213,12 @@ const ShapeBuilder = () => {
         setDragState(null);
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [anchors]);
 
   const buildPathD = () => {
-    if (anchors.length === 0) return "";
+    if (anchors.length === 0) return '';
     let d = `M ${anchors[0].x} ${anchors[0].y}`;
     for (let i = 1; i < anchors.length; i++) {
       const prev = anchors[i - 1];
@@ -203,7 +246,7 @@ const ShapeBuilder = () => {
     setAnchors([]);
     setIsClosed(false);
     setDragState(null);
-    setResult("");
+    setResult('');
   };
 
   return (
@@ -224,16 +267,29 @@ const ShapeBuilder = () => {
 
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <rect width="40" height="40" fill="url(#smallGrid)" />
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#444" strokeWidth="0.7" />
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#444" strokeWidth="0.6" />
             </pattern>
           </defs>
 
           <rect width="100%" height="100%" fill="url(#grid)" opacity="0.4" />
 
           {/* path preview */}
-          <path d={buildPathD()} fill={isClosed ? defaultStroke : "none"} stroke={defaultStroke} strokeWidth={2} />
+          <path d={buildPathD()} fill={isClosed ? defaultStroke : 'none'} fillOpacity={isClosed ? 0.3 : 1} stroke={defaultStroke} strokeWidth={2} />
 
           {/* preview mouse point */}
+          {nearFirst && anchors.length > 0 && !isClosed && (
+            // highlight halo around first point when close enough to auto-close
+            <circle
+              cx={anchors[0].x}
+              cy={anchors[0].y}
+              r={9}
+              fill="none"
+              stroke={defaultStroke}
+              strokeWidth={2}
+              strokeDasharray="2 2"
+            />
+          )}
+
           {mousePoint && anchors.length > 0 && !isClosed && (
             <line
               x1={anchors[anchors.length - 1].x}
@@ -262,7 +318,7 @@ const ShapeBuilder = () => {
                 r={6}
                 fill="#fff"
                 stroke="#666"
-                onMouseDown={(e) => onHandleMouseDown(e, idx, "handleIn")}
+                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleIn')}
               />
 
               <circle
@@ -271,7 +327,7 @@ const ShapeBuilder = () => {
                 r={6}
                 fill="#fff"
                 stroke="#666"
-                onMouseDown={(e) => onHandleMouseDown(e, idx, "handleOut")}
+                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleOut')}
               />
 
               <circle
@@ -288,7 +344,7 @@ const ShapeBuilder = () => {
         </StyledSVG>
       </CanvasContainer>
 
-      <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 3, mb: 3, flexWrap: "wrap" }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3, mb: 3, flexWrap: 'wrap' }}>
         <Button variant="contained" onClick={clear}>Clear</Button>
         <Button variant="contained" onClick={() => setIsClosed(true)}>Close Shape</Button>
       </Box>
