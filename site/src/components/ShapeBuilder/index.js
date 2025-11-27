@@ -273,7 +273,6 @@ const ShapeBuilder = () => {
           onMouseUp={onMouseUp}
         >
           <defs>
-            {/* Figma-style dual-layer grid */}
             <pattern id="smallGrid" width="8" height="8" patternUnits="userSpaceOnUse">
               <path d="M 8 0 L 0 0 0 8" fill="none" stroke="#333" strokeWidth="0.3" />
             </pattern>
@@ -284,7 +283,6 @@ const ShapeBuilder = () => {
             </pattern>
           </defs>
 
-          <rect width="100%" height="100%" fill="#1a1a1a" />
           <rect width="100%" height="100%" fill="url(#grid)" opacity="0.4" />
 
           {/* path preview */}
