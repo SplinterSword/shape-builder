@@ -235,7 +235,47 @@ const ShapeBuilder = () => {
 
   // Export SVG path d instead of normalized points
   const computeExportString = () => {
-    return buildPathD();
+    const d = buildPathD();
+    if (!d) return '';
+
+    // --- Normalize to range [-1, 1] ---
+    const cmds = d.match(/[-+]?[0-9]*\.?[0-9]+/g).map(Number);
+    if (!cmds || cmds.length === 0) return d;
+
+    // extract bounding box
+    const xs = [], ys = [];
+    for (let i = 0; i < cmds.length; i += 2) {
+      xs.push(cmds[i]);
+      ys.push(cmds[i + 1]);
+    }
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const size = Math.max(width, height);
+
+    const cx = (maxX + minX) / 2;
+    const cy = (maxY + minY) / 2;
+
+    const scale = 2 / size; // maps to [-1, 1]
+
+    // rebuild path replacing coordinates
+    let index = 0;
+    let normalizedD = d.replace(/[-+]?[0-9]*\.?[0-9]+/g, () => {
+      const val = cmds[index++];
+      if (index % 2 === 1) {
+        // x coordinate
+        return ((val - cx) * scale).toFixed(4);
+      } else {
+        // y coordinate
+        return ((val - cy) * scale).toFixed(4);
+      }
+    });
+
+    return normalizedD;
   };
 
   useEffect(() => {
@@ -261,6 +301,7 @@ const ShapeBuilder = () => {
           onMouseUp={onMouseUp}
         >
           <defs>
+            {/* Figma-style dual-layer grid */}
             <pattern id="smallGrid" width="8" height="8" patternUnits="userSpaceOnUse">
               <path d="M 8 0 L 0 0 0 8" fill="none" stroke="#333" strokeWidth="0.3" />
             </pattern>
@@ -271,6 +312,7 @@ const ShapeBuilder = () => {
             </pattern>
           </defs>
 
+          <rect width="100%" height="100%" fill="#1a1a1a" />
           <rect width="100%" height="100%" fill="url(#grid)" opacity="0.4" />
 
           {/* path preview */}
