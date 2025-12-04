@@ -251,6 +251,46 @@ const ShapeBuilder = () => {
     setResult(computeExportString());
   }, [anchors, isClosed]);
 
+  // Maximize: scale + translate shape to fit 520x520
+  const maximize = () => {
+    if (anchors.length === 0) return;
+
+    const xs = [];
+    const ys = [];
+    anchors.forEach(a => {
+      xs.push(a.x, a.handleIn.x, a.handleOut.x);
+      ys.push(a.y, a.handleIn.y, a.handleOut.y);
+    });
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    if (width === 0 || height === 0) return;
+
+    const target = 520;
+    const scale = Math.min(target / width, target / height);
+
+    const offsetX = -minX;
+    const offsetY = -minY;
+
+    setAnchors(prev => prev.map(a => ({
+      x: (a.x + offsetX) * scale,
+      y: (a.y + offsetY) * scale,
+      handleIn: {
+        x: (a.handleIn.x + offsetX) * scale,
+        y: (a.handleIn.y + offsetY) * scale
+      },
+      handleOut: {
+        x: (a.handleOut.x + offsetX) * scale,
+        y: (a.handleOut.y + offsetY) * scale
+      }
+    })));
+  };
+
   const clear = () => {
     setAnchors([]);
     setIsClosed(false);
@@ -270,17 +310,11 @@ const ShapeBuilder = () => {
           onMouseUp={onMouseUp}
         >
           <defs>
-            <pattern id="smallGrid" width="8" height="8" patternUnits="userSpaceOnUse">
-              <path d="M 8 0 L 0 0 0 8" fill="none" stroke="#333" strokeWidth="0.3" />
-            </pattern>
-
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <rect width="40" height="40" fill="url(#smallGrid)" />
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#444" strokeWidth="0.6" />
+            <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+              <path d="M 16 0 L 0 0 0 16" fill="none" stroke="#797d7a" strokeWidth="1" />
             </pattern>
           </defs>
-
-          <rect width="100%" height="100%" fill="url(#grid)" opacity="0.4" />
+          <rect className="grid" width="100%" height="100%" fill="url(#grid)" />
 
           {/* path preview */}
           <path d={buildPathD()} fill={isClosed ? defaultStroke : 'none'} fillOpacity={isClosed ? 0.3 : 1} stroke={defaultStroke} strokeWidth={2} />
@@ -356,6 +390,7 @@ const ShapeBuilder = () => {
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3, mb: 3, flexWrap: 'wrap' }}>
         <Button variant="contained" onClick={clear}>Clear</Button>
         <Button variant="contained" onClick={() => setIsClosed(true)}>Close Shape</Button>
+        <Button variant="contained" onClick={maximize}>Maximize</Button>
       </Box>
 
       <OutputBox>
