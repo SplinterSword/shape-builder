@@ -21,6 +21,21 @@ const ShapeBuilder = () => {
   const [dragState, setDragState] = useState(null);
   const [result, setResult] = useState("");
 
+  const [error, setError] = useState(null);
+  const [showCopied, setShowCopied] = useState(false);
+
+  const handleCopyToClipboard = async () => {
+    if (!result.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(result);
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
+    }
+  };
+
   // deep clone anchors helper
   const cloneAnchors = (arr) => arr.map(a => ({
     x: a.x, y: a.y,
