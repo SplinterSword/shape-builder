@@ -1,5 +1,5 @@
 import styled from "styled-components";
-// import styled from "@layer5/sistent";
+// import styled from "@sistent/sistent";
 
 // NOTE: background colors are hardcoded-temporarily for testing
 
@@ -117,6 +117,25 @@ export const OutputBox = styled.div`
   .error {
     color: red;
     font-weight: bold;
+  }
+`;
+
+export const CopyButton = styled.button`
+  position: absolute;
+  top: 0;
+  right: -25px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: ${({ theme }) => theme.text};
+
+  svg {
+    color: ${({ theme }) => theme.text};
+    fill: ${({ theme }) => theme.text};
   }
 `;
 
