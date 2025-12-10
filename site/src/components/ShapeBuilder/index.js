@@ -1,3 +1,6 @@
+// Updated ShapeBuilder with Curved Drawing Support (Figma-like)
+// Style preserved from your original component
+
 import React, { useEffect, useRef, useState } from "react";
 import { Wrapper, CanvasContainer, OutputBox, StyledSVG } from "./shapeBuilder.styles";
 import { Button, Typography, Box } from "@sistent/sistent";
@@ -20,8 +23,6 @@ const ShapeBuilder = () => {
   const [isClosed, setIsClosed] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [result, setResult] = useState("");
-
-  const [error, setError] = useState(null);
   const [showCopied, setShowCopied] = useState(false);
 
   const handleCopyToClipboard = async () => {
@@ -329,7 +330,9 @@ const ShapeBuilder = () => {
               <path d="M 16 0 L 0 0 0 16" fill="none" stroke="#797d7a" strokeWidth="1" />
             </pattern>
           </defs>
+
           <rect className="grid" width="100%" height="100%" fill="url(#grid)" />
+          <rect width="100%" height="100%" fill="url(#majorGrid)" opacity="0.55" />
 
           {/* path preview */}
           <path d={buildPathD()} fill={isClosed ? defaultStroke : 'none'} fillOpacity={isClosed ? 0.3 : 1} stroke={defaultStroke} strokeWidth={2} />
@@ -406,7 +409,7 @@ const ShapeBuilder = () => {
         <Button variant="contained" onClick={clear}>Clear</Button>
         <Button variant="contained" onClick={() => setIsClosed(true)}>Close Shape</Button>
         <Button variant="contained" onClick={maximize}>Maximize</Button>
-      </Box>
+        </Box>
 
       <OutputBox>
         <Typography variant="subtitle1" component="h6">
@@ -414,6 +417,13 @@ const ShapeBuilder = () => {
         </Typography>
         <textarea readOnly value={result} />
       </OutputBox>
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
+        <Button variant="contained" onClick={handleCopyToClipboard}>Copy</Button>
+        {showCopied && (
+          <span style={{ color: '#00B39F', marginTop: '8px' }}>Copied!</span>
+        )}
+      </Box>
     </Wrapper>
   );
 };
