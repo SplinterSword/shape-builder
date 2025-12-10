@@ -27,7 +27,6 @@ const ShapeBuilder = () => {
 
   const handleCopyToClipboard = async () => {
     if (!result.trim()) return;
-
     try {
       await navigator.clipboard.writeText(result);
       setShowCopied(true);
@@ -324,6 +323,9 @@ const ShapeBuilder = () => {
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
+          onDoubleClick={() => {
+            if (!isClosed && anchors.length >= 3) setIsClosed(true);
+          }}
         >
           <defs>
             <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
