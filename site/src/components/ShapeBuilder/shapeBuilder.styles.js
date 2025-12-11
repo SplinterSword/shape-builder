@@ -119,21 +119,6 @@ export const OutputBox = styled.div`
   }
 `;
 
-export const ScaleControlsWrapper = styled.div`
-  max-width: 800px;
-  margin: 0 auto 2rem;
-  padding: 1.5rem;
-  border: 1px solid ${({ theme }) => theme.border || "#24292E"};
-  border-radius: 0.75rem;
-  background-color: ${({ theme }) => theme.body || "#181B1F"};
-
-  h6 {
-    font-weight: 600;
-    font-size: 1rem;
-    color: ${({ theme }) => theme.text || "#fff"};
-  }
-`;
-
 export const CopyButton = styled.button`
   position: absolute;
   top: 0;

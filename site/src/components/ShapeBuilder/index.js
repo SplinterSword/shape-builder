@@ -135,24 +135,6 @@ const ShapeBuilder = () => {
       if (!points) return;
       poly.plot(points.slice(0, -1));
     }
-
-    // Handle +/- for scaling
-    if (e.key === "+" || e.key === "=") {
-      e.preventDefault();
-      // Find next higher preset or increment by 0.1
-      const nextPreset = SCALE_PRESETS.find(p => p > scale);
-      const newScale = nextPreset || Math.min(scale + 0.1, MAX_SCALE);
-      handleScaleChange(newScale);
-    }
-
-    if (e.key === "-" || e.key === "_") {
-      e.preventDefault();
-      // Find next lower preset or decrement by 0.1
-      const prevPresets = SCALE_PRESETS.filter(p => p < scale);
-      const prevPreset = prevPresets.length > 0 ? prevPresets[prevPresets.length - 1] : null;
-      const newScale = prevPreset || Math.max(scale - 0.1, MIN_SCALE);
-      handleScaleChange(newScale);
-    }
   };
 
   const handleKeyUp = (e) => {
