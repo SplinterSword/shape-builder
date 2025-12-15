@@ -7,7 +7,6 @@ import draw from "@svgdotjs/svg.draw.js";
 
 SVGextend(SVG.Polygon, draw);
 
-// Scale presets
 const SCALE_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 3;
@@ -16,7 +15,7 @@ const ShapeBuilder = () => {
   const boardRef = useRef(null);
   const polyRef = useRef(null);
   const keyHandlersRef = useRef({});
-  const basePointsRef = useRef(null); // Store original points for scaling
+  const basePointsRef = useRef(null);
   const [result, setResult] = useState("");
   const [error, setError] = useState(null);
   const [showCopied, setShowCopied] = useState(false);
@@ -68,21 +67,18 @@ const ShapeBuilder = () => {
 
     const points = getPlottedPoints(poly);
     if (!points || points.length === 0) return;
-
-    // Store base points if not already stored (first time)
+    
     if (!basePointsRef.current) {
       basePointsRef.current = points;
     }
 
     const basePoints = basePointsRef.current;
 
-    // Calculate the center of the base polygon
     const xs = basePoints.map(p => p[0]);
     const ys = basePoints.map(p => p[1]);
     const centerX = (Math.max(...xs) + Math.min(...xs)) / 2;
     const centerY = (Math.max(...ys) + Math.min(...ys)) / 2;
 
-    // Scale points relative to center, maintaining aspect ratio
     const scaledPoints = basePoints.map(([x, y]) => {
       const dx = x - centerX;
       const dy = y - centerY;
@@ -94,11 +90,10 @@ const ShapeBuilder = () => {
   };
 
   const handleScaleChange = (newScale) => {
-    // Clamp scale to min/max
+    
     const clampedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
     setScale(clampedScale);
     
-    // Check if scale matches a preset
     const matchingPreset = SCALE_PRESETS.find(p => Math.abs(p - clampedScale) < 0.01);
     setCurrentPreset(matchingPreset || clampedScale);
     
@@ -203,7 +198,6 @@ const ShapeBuilder = () => {
     poly.draw("done");
     poly.fill("#00B39F");
     
-    // Store the base points when shape is closed
     const points = getPlottedPoints(poly);
     if (points && points.length > 0) {
       basePointsRef.current = points;
