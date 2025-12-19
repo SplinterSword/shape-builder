@@ -473,7 +473,7 @@ const ShapeBuilder = () => {
 
       <OutputBox>
         <Typography variant="subtitle1" component="h6">
-          SVG Path (d attribute):
+          Polygon Coordinates (SVG format):
         </Typography>
         <textarea readOnly value={result} />
       </OutputBox>
