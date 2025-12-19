@@ -54,7 +54,7 @@ const ShapeBuilder = () => {
 
     if (placing) {
       // index will be previous length
-      setDragState(prev => ({ type: 'placing', index: (anchors.length), start: { x, y } }));
+      setDragState(prev => ({ type: "placing", index: (anchors.length), start: { x, y } }));
     }
   };
 
@@ -68,7 +68,7 @@ const ShapeBuilder = () => {
         const ay = next[index].y;
         const dx = hx - ax;
         const dy = hy - ay;
-        const opposite = handleKey === 'handleOut' ? 'handleIn' : 'handleOut';
+        const opposite = handleKey === "handleOut" ? "handleIn" : "handleOut";
         next[index][opposite] = { x: ax - dx, y: ay - dy };
       }
       return next;
@@ -80,9 +80,9 @@ const ShapeBuilder = () => {
     const pt = getSvgPoint(boardRef.current, clientX, clientY);
     if (!dragState) return;
 
-    if (dragState.type === 'placing') {
-      updateAnchorHandle(dragState.index, 'handleOut', pt.x, pt.y, true);
-    } else if (dragState.type === 'handle') {
+    if (dragState.type === "placing") {
+      updateAnchorHandle(dragState.index, "handleOut", pt.x, pt.y, true);
+    } else if (dragState.type === "handle") {
       updateAnchorHandle(dragState.index, dragState.handleKey, pt.x, pt.y, dragState.symmetric);
     }
   };
@@ -145,7 +145,7 @@ const ShapeBuilder = () => {
   const onHandleMouseDown = (e, index, handleKey) => {
     e.stopPropagation();
     const symmetric = !e.shiftKey; // shift decouples handles
-    setDragState({ type: 'handle', index, handleKey, symmetric });
+    setDragState({ type: "handle", index, handleKey, symmetric });
   };
 
   const onAnchorMouseDown = (e, index) => {
@@ -160,12 +160,12 @@ const ShapeBuilder = () => {
 
     // Otherwise, start moving this anchor
     const start = getSvgPoint(boardRef.current, e.clientX, e.clientY);
-    setDragState({ type: 'moveAnchor', index, start });
+    setDragState({ type: "moveAnchor", index, start });
   };
 
   // move anchor effect
   useEffect(() => {
-    if (!dragState || dragState.type !== 'moveAnchor') return;
+    if (!dragState || dragState.type !== "moveAnchor") return;
 
     const move = (ev) => {
       const pt = getSvgPoint(boardRef.current, ev.clientX, ev.clientY);
@@ -184,40 +184,40 @@ const ShapeBuilder = () => {
     };
 
     const up = () => setDragState(null);
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
     return () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
     };
   }, [dragState]);
 
   // global handle/placing drag listeners
   useEffect(() => {
     if (!dragState) return;
-    if (dragState.type !== 'handle' && dragState.type !== 'placing') return;
+    if (dragState.type !== "handle" && dragState.type !== "placing") return;
 
     const onMove = (ev) => updatePathOnMove(ev.clientX, ev.clientY);
     const onUp = () => setDragState(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
     };
   }, [dragState]);
 
   // keyboard handlers
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === 'Enter' && anchors.length >= 3) {
+      if (e.key === "Enter" && anchors.length >= 3) {
         setIsClosed(true);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         setAnchors(prev => prev.slice(0, -1));
         setIsClosed(false);
       }
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         // Close shape on ESC
         if (anchors.length >= 3) {
           setIsClosed(true);
@@ -225,12 +225,12 @@ const ShapeBuilder = () => {
         setDragState(null);
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [anchors]);
 
   const buildPathD = () => {
-    if (anchors.length === 0) return '';
+    if (anchors.length === 0) return "";
     let d = `M ${anchors[0].x} ${anchors[0].y}`;
     for (let i = 1; i < anchors.length; i++) {
       const prev = anchors[i - 1];
@@ -317,7 +317,7 @@ const ShapeBuilder = () => {
   const computeExportString = () => {
     const flat = flattenToPoints();
     const normalized = normalizePoints(flat);
-    return normalized.flat().join(' ');
+    return normalized.flat().join(" ");
   };
 
   useEffect(() => {
@@ -368,7 +368,7 @@ const ShapeBuilder = () => {
     setAnchors([]);
     setIsClosed(false);
     setDragState(null);
-    setResult('');
+    setResult("");
   };
 
   return (
@@ -381,7 +381,9 @@ const ShapeBuilder = () => {
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
-          onDoubleClick={() => { if (!isClosed && anchors.length >= 3) setIsClosed(true); }}
+          onDoubleClick={() => {
+            if (!isClosed && anchors.length >= 3) setIsClosed(true);
+          }}
         >
           <defs>
             <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
@@ -393,7 +395,7 @@ const ShapeBuilder = () => {
           <rect width="100%" height="100%" fill="url(#majorGrid)" opacity="0.55" />
 
           {/* path preview */}
-          <path d={buildPathD()} fill={isClosed ? defaultStroke : 'none'} fillOpacity={isClosed ? 0.3 : 1} stroke={defaultStroke} strokeWidth={2} />
+          <path d={buildPathD()} fill={isClosed ? defaultStroke : "none"} fillOpacity={isClosed ? 0.3 : 1} stroke={defaultStroke} strokeWidth={2} />
 
           {/* preview mouse point */}
           {nearFirst && anchors.length > 0 && !isClosed && (
@@ -437,7 +439,7 @@ const ShapeBuilder = () => {
                 r={6}
                 fill="#fff"
                 stroke="#666"
-                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleIn')}
+                onMouseDown={(e) => onHandleMouseDown(e, idx, "handleIn")}
               />
 
               <circle
@@ -446,7 +448,7 @@ const ShapeBuilder = () => {
                 r={6}
                 fill="#fff"
                 stroke="#666"
-                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleOut')}
+                onMouseDown={(e) => onHandleMouseDown(e, idx, "handleOut")}
               />
 
               <circle
@@ -463,11 +465,11 @@ const ShapeBuilder = () => {
         </StyledSVG>
       </CanvasContainer>
 
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3, mb: 3, flexWrap: 'wrap' }}>
+      <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 3, mb: 3, flexWrap: "wrap" }}>
         <Button variant="contained" onClick={clear}>Clear</Button>
         <Button variant="contained" onClick={() => setIsClosed(true)}>Close Shape</Button>
         <Button variant="contained" onClick={maximize}>Maximize</Button>
-        </Box>
+      </Box>
 
       <OutputBox>
         <Typography variant="subtitle1" component="h6">
@@ -476,10 +478,10 @@ const ShapeBuilder = () => {
         <textarea readOnly value={result} />
       </OutputBox>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mt: 2 }}>
         <Button variant="contained" onClick={handleCopyToClipboard}>Copy</Button>
         {showCopied && (
-          <span style={{ color: '#00B39F', marginTop: '8px' }}>Copied!</span>
+          <span style={{ color: "#00B39F", marginTop: "8px" }}>Copied!</span>
         )}
       </Box>
     </Wrapper>
