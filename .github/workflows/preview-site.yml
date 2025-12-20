@@ -15,18 +15,18 @@ jobs:
         uses: actions/checkout@master
 
       - name: Download Site dir
-        uses: dawidd6/action-download-artifact@v6
+        uses: actions/download-artifact@v4
         with:
-          github_token: ${{ secrets.RELEASE_NOTES_PAT }}
-          workflow: build-and-preview-site.yml
-          run_id: ${{ github.event.workflow_run.id }}
-          name: site-dir
+          name: public-dir
+          github-token: ${{ secrets.RELEASE_NOTES_PATN }}
+          repository: ${{ github.event.workflow_run.repository.full_name }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Unzip Site
         run: |
           rm -rf ./docs/_site
-          unzip site-dir.zip
-          rm -f site-dir.zip
+          unzip public-dir.zip
+          rm -f public-dir.zip
 
       - name: Deploy to Netlify
         id: netlify
@@ -43,7 +43,7 @@ jobs:
       - name: Comment Deploy URL
         uses: ./.github/actions/comment-preview-on-pr
         with:
-          token: ${{ secrets.RELEASE_NOTES_PAT }}
+          token: ${{ secrets.RELEASE_NOTES_PATN }}
           deploy_url: "${{ steps.netlify.outputs.deploy-url }}"
 
 
