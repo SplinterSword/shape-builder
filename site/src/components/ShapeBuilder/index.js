@@ -90,7 +90,6 @@ const ShapeBuilder = () => {
   };
 
   const handleScaleChange = (newScale) => {
-    
     const clampedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
     setScale(clampedScale);
     
@@ -197,12 +196,10 @@ const ShapeBuilder = () => {
 
     poly.draw("done");
     poly.fill("#00B39F");
-    
     const points = getPlottedPoints(poly);
     if (points && points.length > 0) {
       basePointsRef.current = points;
     }
-    
     showCytoArray();
   };
 
@@ -261,6 +258,7 @@ const ShapeBuilder = () => {
               value={currentPreset}
               onChange={handlePresetChange}
               displayEmpty
+              aria-label="Scale preset"
               sx={{
                 color: '#fff',
                 '& .MuiSelect-icon': {
@@ -286,6 +284,7 @@ const ShapeBuilder = () => {
               valueLabelDisplay="auto"
               valueLabelFormat={(value) => `${value.toFixed(2)}×`}
               marks={SCALE_PRESETS.map(value => ({ value, label: "" }))}
+              aria-label="Scale slider"
               sx={{ flexGrow: 1 }}
             />
           </Box>
