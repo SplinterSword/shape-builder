@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Invite on label
-        uses: vj-abigo/invite-on-label@v1
+        uses: vj-abigo/invite-on-label@v1.2
         with:
           organization: layer5io
           label: issue/invite
