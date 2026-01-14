@@ -12,11 +12,8 @@ function getSvgPoint(svg, clientX, clientY) {
   return pt.matrixTransform(svg.getScreenCTM().inverse());
 }
 
-
 const ShapeBuilder = () => {
   const [showCopied, setShowCopied] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [currentPreset, setCurrentPreset] = useState(1);
 
   const handleCopyToClipboard = async () => {
     if (!result.trim()) return;
