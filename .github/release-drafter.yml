@@ -1,6 +1,5 @@
 name-template: 'Meshery v$NEXT_PATCH_VERSION'
 tag-template: 'v$NEXT_PATCH_VERSION'
-no-duplicate-categories: true
 categories:
   - title: '🚀 Features'
     labels:
@@ -28,11 +27,9 @@ categories:
       - 'area/ci'
       - 'area/tests'
   - title: 📖 Documentation
-    labels:
-      - rea/docs
+    labels: 'area/docs'
   - title: 🔒 Security
-    labels:
-      - ecurity  
+    labels: 'security'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 template: |
   ## What's New

@@ -8,29 +8,32 @@ on:
 
 jobs:
   deploy-preview:
-    if: github.repository == 'meshery-extensions/shape-builder'
+    if: >
+      github.repository == 'meshery-extensions/shape-builder' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@master
 
       - name: Download Site dir
-        uses: dawidd6/action-download-artifact@v6
+        uses: actions/download-artifact@v6
         with:
-          github_token: ${{ secrets.RELEASE_NOTES_PAT }}
-          workflow: build-and-preview-site.yml
-          run_id: ${{ github.event.workflow_run.id }}
-          name: site-dir
+          name: public-dir
+          github-token: ${{ secrets.RELEASE_NOTES_PATN }}
+          repository: ${{ github.event.workflow_run.repository.full_name }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Unzip Site
         run: |
-          rm -rf ./docs/_site
-          unzip site-dir.zip
-          rm -f site-dir.zip
+          rm -rf docs/_site
+          mkdir -p docs/_site
+          unzip public-dir.zip -d docs/_site
+          rm -f public-dir.zip
 
       - name: Deploy to Netlify
         id: netlify
-        uses: nwtgck/actions-netlify@v1.1
+        uses: nwtgck/actions-netlify@v3
         with:
           publish-dir: 'docs/_site'
           production-deploy: false
@@ -43,7 +46,7 @@ jobs:
       - name: Comment Deploy URL
         uses: ./.github/actions/comment-preview-on-pr
         with:
-          token: ${{ secrets.RELEASE_NOTES_PAT }}
+          token: ${{ secrets.RELEASE_NOTES_PATN }}
           deploy_url: "${{ steps.netlify.outputs.deploy-url }}"
 
 
