@@ -54,7 +54,7 @@ const ShapeBuilder = () => {
 
     if (placing) {
       // index will be previous length
-      setDragState(prev => ({ type: "placing", index: (anchors.length), start: { x, y } }));
+      setDragState(prev => ({ type: 'placing', index: (anchors.length), start: { x, y } }));
     }
   };
 
@@ -68,7 +68,7 @@ const ShapeBuilder = () => {
         const ay = next[index].y;
         const dx = hx - ax;
         const dy = hy - ay;
-        const opposite = handleKey === "handleOut" ? "handleIn" : "handleOut";
+        const opposite = handleKey === 'handleOut' ? 'handleIn' : 'handleOut';
         next[index][opposite] = { x: ax - dx, y: ay - dy };
       }
       return next;
@@ -80,9 +80,9 @@ const ShapeBuilder = () => {
     const pt = getSvgPoint(boardRef.current, clientX, clientY);
     if (!dragState) return;
 
-    if (dragState.type === "placing") {
-      updateAnchorHandle(dragState.index, "handleOut", pt.x, pt.y, true);
-    } else if (dragState.type === "handle") {
+    if (dragState.type === 'placing') {
+      updateAnchorHandle(dragState.index, 'handleOut', pt.x, pt.y, true);
+    } else if (dragState.type === 'handle') {
       updateAnchorHandle(dragState.index, dragState.handleKey, pt.x, pt.y, dragState.symmetric);
     }
   };
@@ -145,7 +145,7 @@ const ShapeBuilder = () => {
   const onHandleMouseDown = (e, index, handleKey) => {
     e.stopPropagation();
     const symmetric = !e.shiftKey; // shift decouples handles
-    setDragState({ type: "handle", index, handleKey, symmetric });
+    setDragState({ type: 'handle', index, handleKey, symmetric });
   };
 
   const onAnchorMouseDown = (e, index) => {
@@ -160,12 +160,12 @@ const ShapeBuilder = () => {
 
     // Otherwise, start moving this anchor
     const start = getSvgPoint(boardRef.current, e.clientX, e.clientY);
-    setDragState({ type: "moveAnchor", index, start });
+    setDragState({ type: 'moveAnchor', index, start });
   };
 
   // move anchor effect
   useEffect(() => {
-    if (!dragState || dragState.type !== "moveAnchor") return;
+    if (!dragState || dragState.type !== 'moveAnchor') return;
 
     const move = (ev) => {
       const pt = getSvgPoint(boardRef.current, ev.clientX, ev.clientY);
@@ -184,40 +184,40 @@ const ShapeBuilder = () => {
     };
 
     const up = () => setDragState(null);
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
     return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
     };
   }, [dragState]);
 
   // global handle/placing drag listeners
   useEffect(() => {
     if (!dragState) return;
-    if (dragState.type !== "handle" && dragState.type !== "placing") return;
+    if (dragState.type !== 'handle' && dragState.type !== 'placing') return;
 
     const onMove = (ev) => updatePathOnMove(ev.clientX, ev.clientY);
     const onUp = () => setDragState(null);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
   }, [dragState]);
 
   // keyboard handlers
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === "Enter" && anchors.length >= 3) {
+      if (e.key === 'Enter' && anchors.length >= 3) {
         setIsClosed(true);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         setAnchors(prev => prev.slice(0, -1));
         setIsClosed(false);
       }
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         // Close shape on ESC
         if (anchors.length >= 3) {
           setIsClosed(true);
@@ -225,12 +225,12 @@ const ShapeBuilder = () => {
         setDragState(null);
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [anchors]);
 
   const buildPathD = () => {
-    if (anchors.length === 0) return "";
+    if (anchors.length === 0) return '';
     let d = `M ${anchors[0].x} ${anchors[0].y}`;
     for (let i = 1; i < anchors.length; i++) {
       const prev = anchors[i - 1];
@@ -246,48 +246,94 @@ const ShapeBuilder = () => {
   };
 
   // ---- Cytoscape-compatible export ----
-  // 1) Flatten cubic Bezier curves into straight segments
-  // 2) Normalize points to range [-1, 1] with center at (0,0)
+  // Adaptive Bezier flattening (flatness-based)
+  // Produces far fewer points while preserving visual accuracy for Cytoscape
 
-  const BEZIER_SEGMENTS = 20; // accuracy per curve
+  const FLATNESS_TOLERANCE = 0.5; // px; increase to reduce points further
 
-  // cubic Bezier interpolation
-  const cubicAt = (p0, p1, p2, p3, t) => {
-    const mt = 1 - t;
-    return (
-      mt * mt * mt * p0 +
-      3 * mt * mt * t * p1 +
-      3 * mt * t * t * p2 +
-      t * t * t * p3
-    );
+  const distPointToLineSq = (px, py, x1, y1, x2, y2) => {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D || 1;
+    const param = dot / lenSq;
+
+    const xx = x1 + param * C;
+    const yy = y1 + param * D;
+
+    const dx = px - xx;
+    const dy = py - yy;
+    return dx * dx + dy * dy;
+  };
+
+  const isFlatEnough = (p0, p1, p2, p3, tolSq) => {
+    const d1 = distPointToLineSq(p1.x, p1.y, p0.x, p0.y, p3.x, p3.y);
+    const d2 = distPointToLineSq(p2.x, p2.y, p0.x, p0.y, p3.x, p3.y);
+    return d1 <= tolSq && d2 <= tolSq;
+  };
+
+  const subdivideBezier = (p0, p1, p2, p3) => {
+    const p01 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+    const p12 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const p23 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
+
+    const p012 = { x: (p01.x + p12.x) / 2, y: (p01.y + p12.y) / 2 };
+    const p123 = { x: (p12.x + p23.x) / 2, y: (p12.y + p23.y) / 2 };
+
+    const p0123 = { x: (p012.x + p123.x) / 2, y: (p012.y + p123.y) / 2 };
+
+    return [
+      [p0, p01, p012, p0123],
+      [p0123, p123, p23, p3]
+    ];
+  };
+
+  const flattenBezierAdaptive = (p0, p1, p2, p3, tolSq, out) => {
+    if (isFlatEnough(p0, p1, p2, p3, tolSq)) {
+      out.push([p3.x, p3.y]);
+    } else {
+      const [l, r] = subdivideBezier(p0, p1, p2, p3);
+      flattenBezierAdaptive(l[0], l[1], l[2], l[3], tolSq, out);
+      flattenBezierAdaptive(r[0], r[1], r[2], r[3], tolSq, out);
+    }
   };
 
   const flattenToPoints = () => {
     if (anchors.length === 0) return [];
 
     const pts = [];
+    const tolSq = FLATNESS_TOLERANCE * FLATNESS_TOLERANCE;
+
+    // start point
+    pts.push([anchors[0].x, anchors[0].y]);
 
     for (let i = 1; i < anchors.length; i++) {
       const prev = anchors[i - 1];
       const curr = anchors[i];
-
-      for (let s = 0; s <= BEZIER_SEGMENTS; s++) {
-        const t = s / BEZIER_SEGMENTS;
-        const x = cubicAt(prev.x, prev.handleOut.x, curr.handleIn.x, curr.x, t);
-        const y = cubicAt(prev.y, prev.handleOut.y, curr.handleIn.y, curr.y, t);
-        pts.push([x, y]);
-      }
+      flattenBezierAdaptive(
+        { x: prev.x, y: prev.y },
+        { x: prev.handleOut.x, y: prev.handleOut.y },
+        { x: curr.handleIn.x, y: curr.handleIn.y },
+        { x: curr.x, y: curr.y },
+        tolSq,
+        pts
+      );
     }
 
     if (isClosed && anchors.length >= 2) {
       const last = anchors[anchors.length - 1];
       const first = anchors[0];
-      for (let s = 0; s <= BEZIER_SEGMENTS; s++) {
-        const t = s / BEZIER_SEGMENTS;
-        const x = cubicAt(last.x, last.handleOut.x, first.handleIn.x, first.x, t);
-        const y = cubicAt(last.y, last.handleOut.y, first.handleIn.y, first.y, t);
-        pts.push([x, y]);
-      }
+      flattenBezierAdaptive(
+        { x: last.x, y: last.y },
+        { x: last.handleOut.x, y: last.handleOut.y },
+        { x: first.handleIn.x, y: first.handleIn.y },
+        { x: first.x, y: first.y },
+        tolSq,
+        pts
+      );
     }
 
     return pts;
@@ -317,7 +363,7 @@ const ShapeBuilder = () => {
   const computeExportString = () => {
     const flat = flattenToPoints();
     const normalized = normalizePoints(flat);
-    return normalized.flat().join(" ");
+    return normalized.flat().join(' ');
   };
 
   useEffect(() => {
@@ -368,7 +414,7 @@ const ShapeBuilder = () => {
     setAnchors([]);
     setIsClosed(false);
     setDragState(null);
-    setResult("");
+    setResult('');
   };
 
   return (
@@ -381,9 +427,7 @@ const ShapeBuilder = () => {
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
-          onDoubleClick={() => {
-            if (!isClosed && anchors.length >= 3) setIsClosed(true);
-          }}
+          onDoubleClick={() => { if (!isClosed && anchors.length >= 3) setIsClosed(true); }}
         >
           <defs>
             <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
@@ -395,7 +439,7 @@ const ShapeBuilder = () => {
           <rect width="100%" height="100%" fill="url(#majorGrid)" opacity="0.55" />
 
           {/* path preview */}
-          <path d={buildPathD()} fill={isClosed ? defaultStroke : "none"} fillOpacity={isClosed ? 0.3 : 1} stroke={defaultStroke} strokeWidth={2} />
+          <path d={buildPathD()} fill={isClosed ? defaultStroke : 'none'} fillOpacity={isClosed ? 0.3 : 1} stroke={defaultStroke} strokeWidth={2} />
 
           {/* preview mouse point */}
           {nearFirst && anchors.length > 0 && !isClosed && (
@@ -439,7 +483,7 @@ const ShapeBuilder = () => {
                 r={6}
                 fill="#fff"
                 stroke="#666"
-                onMouseDown={(e) => onHandleMouseDown(e, idx, "handleIn")}
+                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleIn')}
               />
 
               <circle
@@ -448,7 +492,7 @@ const ShapeBuilder = () => {
                 r={6}
                 fill="#fff"
                 stroke="#666"
-                onMouseDown={(e) => onHandleMouseDown(e, idx, "handleOut")}
+                onMouseDown={(e) => onHandleMouseDown(e, idx, 'handleOut')}
               />
 
               <circle
@@ -465,23 +509,23 @@ const ShapeBuilder = () => {
         </StyledSVG>
       </CanvasContainer>
 
-      <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 3, mb: 3, flexWrap: "wrap" }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3, mb: 3, flexWrap: 'wrap' }}>
         <Button variant="contained" onClick={clear}>Clear</Button>
         <Button variant="contained" onClick={() => setIsClosed(true)}>Close Shape</Button>
         <Button variant="contained" onClick={maximize}>Maximize</Button>
-      </Box>
+        </Box>
 
       <OutputBox>
         <Typography variant="subtitle1" component="h6">
-          Polygon Coordinates (SVG format):
+          SVG Path (d attribute):
         </Typography>
         <textarea readOnly value={result} />
       </OutputBox>
 
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mt: 2 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
         <Button variant="contained" onClick={handleCopyToClipboard}>Copy</Button>
         {showCopied && (
-          <span style={{ color: "#00B39F", marginTop: "8px" }}>Copied!</span>
+          <span style={{ color: '#00B39F', marginTop: '8px' }}>Copied!</span>
         )}
       </Box>
     </Wrapper>
