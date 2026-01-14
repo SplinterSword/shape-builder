@@ -24,12 +24,11 @@ jobs:
           repository: ${{ github.event.workflow_run.repository.full_name }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Unzip Site
+      - name: Prepare Netlify publish directory
         run: |
           rm -rf docs/_site
           mkdir -p docs/_site
-          unzip public-dir.zip -d docs/_site
-          rm -f public-dir.zip
+          cp -r public-dir/. docs/_site/
 
       - name: Deploy to Netlify
         id: netlify

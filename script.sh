@@ -1,21 +1,26 @@
 #!/usr/bin/env bash
 set -e
 
-ZIP_NAME="public-dir.zip"
 BUILD_DIR="site/public"
+OUT_DIR="public-dir"
 
 # Ensure build output exists and is not empty
-if [ ! -d "$BUILD_DIR" ] || [ -z "$(ls -A "$BUILD_DIR")" ]; then
-  echo "Build output missing or empty at $BUILD_DIR"
+if [ ! -d "$BUILD_DIR" ]; then
+  echo "Build output directory does not exist: $BUILD_DIR"
   exit 1
 fi
 
-rm -f "$ZIP_NAME"
+if [ -z "$(ls -A "$BUILD_DIR")" ]; then
+  echo "Build output directory is empty: $BUILD_DIR"
+  exit 1
+fi
 
-# Zip ONLY the contents of the built site
-(
-  cd "$BUILD_DIR"
-  zip -r "../../$ZIP_NAME" .
-)
+# Prepare artifact directory
+rm -rf "$OUT_DIR"
+mkdir -p "$OUT_DIR"
 
-echo "Zipped site contents into $ZIP_NAME"
+# Copy built site contents
+cp -r "$BUILD_DIR"/. "$OUT_DIR"/
+
+echo "Prepared site artifact in $OUT_DIR"
+ls -lh "$OUT_DIR"
